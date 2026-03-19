@@ -4,10 +4,14 @@ import Image from "next/image"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 
+const phrasesEffect = [
+  "Controle de gastos.", 
+  "Independência financeira.", 
+  "Seu patrimônio crescendo.", 
+  "Organização financeira."
+]
+
 export default function Login() {
-
-  const phrasesEffect = ["Controle de gastos.", "Independência financeira.", "Seu patrimônio crescendo.", "Organização financeira."]
-
   const [text, setText] = useState("")
   const [loop, setLoop] = useState(0)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -23,7 +27,6 @@ export default function Login() {
     }
 
     const timer = setTimeout(() => {
-      
       if (!isDeleting && text === fullText) {
         setIsDeleting(true)
       } else if (isDeleting && text === "") {
@@ -32,7 +35,6 @@ export default function Login() {
       } else {
         setText(fullText.substring(0, text.length + (isDeleting ? -1 : 1)))
       }
-
     }, typingSpeed)
 
     return () => clearTimeout(timer)
@@ -55,7 +57,7 @@ export default function Login() {
               />
           </div>
           <p className=" mt-4 text-2xl text-white font-semibold text-center lg:text-3xl lg:mt-8 lg:text-left xl:text-4xl">Controlar suas finanças nunca foi tão fácil.</p>
-          <p className="text-center text-white mt-4 text-xl font-semibold lg:text-2xl lg:mt-8 xl:text-3xl">{text}<span className={`text-secondary-color-green ${isPaused ? 'animate-ping' : ''}`}>|</span></p>
+          <p className="text-center text-white mt-4 text-xl font-semibold lg:text-2xl lg:mt-8 xl:text-3xl">{text}<span className={`text-secondary-color-green ${isPaused ? 'animate-pulse' : ''}`}>|</span></p>
         </div>
         <div className="flex flex-col items-center bg-white p-6 rounded-2xl h-fit lg:p-12 lg:w-3/6 xl:p-16">
           <span className="text-2xl text-primary-color-green font-bold lg:text-3xl lg:self-start xl:text-4xl">Bem-vindo!</span>
