@@ -134,7 +134,7 @@ export default function sideMenu({ children }: { children: React.ReactNode }) {
 
       {/* CONTEÚDO PRINCIPAL */}
 
-      <main className="">
+      <main className="flex-1 overflow-y-auto">
         {children}
       </main>
       
