@@ -1,9 +1,10 @@
 import Image from "next/image"
 import CardFinance from "@/components/CardFinance"
+import TransactionsTable from "@/components/TransactionsTable"
 
 export default function Home() {
   return (
-    <div className="w-full p-4 md:p-8">
+    <div className="w-full xl:h-full p-4 md:p-8 flex flex-col gap-8">
       
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-tertiary-color-green p-5 md:p-6 rounded-2xl w-full shadow-sm">
         <div className="flex flex-col gap-1">
@@ -34,7 +35,7 @@ export default function Home() {
           Adicionar gasto
         </button>
       </header>
-      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6 mt-6">
+      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
         <CardFinance 
           title="Patrimônio total" 
           value="R$ 15.430,00" 
@@ -55,14 +56,15 @@ export default function Home() {
           editButton={false} 
         />
         <CardFinance 
-          title="Taxa de Utilização" 
+          title="Taxa de utilização" 
           value="57%"
           border={true}
           icon="/img-percent-card.png" 
           bgColor="bg-white"
           textColor="text-primary-color-green"
           bgIcon="bg-tertiary-color-green"
-          editButton={false} 
+          editButton={false}
+          usageFee={57}
         />
         <CardFinance 
           title="Soma de gastos" 
@@ -75,7 +77,9 @@ export default function Home() {
           editButton={false} 
         />
       </section>
-      
+      <section className="flex-1 min-h-0 flex flex-col">
+        <TransactionsTable/>
+      </section>
     </div>
   )
 }
