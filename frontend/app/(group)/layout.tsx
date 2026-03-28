@@ -94,7 +94,7 @@ export default function sideMenu({ children }: { children: React.ReactNode }) {
 
       {/* MENU LATERAL DESKTOP */}
 
-      <aside className="hidden w-64 bg-primary-color-green flex-col p-6 shadow-xl z-10 lg:flex">
+      <aside className="hidden w-52 bg-primary-color-green flex-col p-6 shadow-xl z-10 lg:flex xl:w-62">
         <div className="flex items-center gap-2 mb-12 mt-4">
           <span className="text-2xl text-secondary-color-green font-semibold">Finance<span className="text-white">AI</span></span>
           <Image src="/img-logo.png" alt="Logo" width={24} height={24} />
