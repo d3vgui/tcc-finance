@@ -1,14 +1,14 @@
 import Image from "next/image";
 
 interface CardProps {
-  icon: string
+  icon?: string
   editButton?: boolean
   border?: boolean
   title: string
   value: string
-  bgColor: string
-  textColor: string
-  bgIcon: string
+  bgColor?: string
+  textColor?: string
+  bgIcon?: string
   usageFee?: number
 
 }
@@ -18,18 +18,22 @@ export default function CardFinance({ icon, editButton, border, title, value, bg
   const borderSolid = border ? "border-1 border-solid border-line-gray" : ""
 
   return (
-    <div className={`flex flex-col rounded-2xl p-4 ${bgColor} shadow-md ${borderSolid} md:p-5`}>
+    <div className={`flex flex-col rounded-2xl p-4 ${bgColor} shadow-md ${borderSolid} w-full md:p-5`}>
       <div className="flex justify-between items-center">
-          <div className={`p-1 ${bgIcon} rounded-lg md:p-2`}>
-            <Image
-              src={icon}
-              alt={`Ícone ${title}`}
-              title={`Ícone ${title}`}
-              width={30}
-              height={30}
-              className="w-5 h-5 md:w-6 md:h-6"
-            />
-          </div>
+          {icon ? (
+            <div className={`p-1 ${bgIcon} rounded-lg md:p-2`}>
+              <Image
+                src={icon}
+                alt={`Ícone ${title}`}
+                title={`Ícone ${title}`}
+                width={30}
+                height={30}
+                className="w-5 h-5 md:w-6 md:h-6"
+              />
+            </div>
+          ) : (
+            <div></div>
+          )}
           {editButton && (
             <button className="cursor-pointer hover:opacity-70 transition-opacity">
               <Image

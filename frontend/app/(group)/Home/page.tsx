@@ -6,7 +6,7 @@ export default function Home() {
   return (
     <div className="w-full xl:h-full p-4 md:p-8 flex flex-col gap-8">
       
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-tertiary-color-green p-5 md:p-6 rounded-2xl w-full shadow-sm">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-tertiary-color-green p-5 md:p-6 rounded-2xl w-full shadow-md">
         <div className="flex flex-col gap-1">
           <span className="text-primary-color-green font-semibold text-xl md:text-2xl my-2">
             Bem-vindo, <span className="text-secondary-color-green">Guilherme</span>.
