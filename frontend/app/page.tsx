@@ -45,7 +45,7 @@ export default function Login() {
       <div className="flex flex-col mx-auto container p-4 gap-7 lg:flex-row lg:items-center lg:p-12 xl:gap-14">
         <div className="h-fit lg:w-3/6 lg:flex lg:flex-col lg:items-start">
           <div className="flex justify-center items-center gap-2 lg:gap-4">
-            <h1 className="text-4xl text-center text-secondary-color-green font-semibold lg:text-right lg:text-5xl xl:text-6xl">Finance<span className="text-white">AI</span></h1>
+            <h2 className="text-4xl text-center text-secondary-color-green font-semibold lg:text-right lg:text-5xl xl:text-6xl">Finance<span className="text-white">AI</span></h2>
             <Image
               src="/img-logo.png"
               alt="Logo FinanceAI"
