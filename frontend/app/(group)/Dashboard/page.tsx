@@ -1,3 +1,5 @@
+"use client"
+
 import CustomBarChart from "@/components/CustomBarChart"
 import CustomPieChart from "@/components/CustomPieChart"
 import GrowthAreaChart from "@/components/GrowthAreaChart"
@@ -25,7 +27,10 @@ const assetData = [
 
 export default function Dashboard() {
   return (
-    <div className="w-full p-4 md:p-8 flex flex-col gap-6 xl:h-full xl:overflow-hidden overflow-y-auto">
+    // 1. Removido o 'xl:h-full', 'xl:overflow-hidden' e 'overflow-y-auto'
+    // A página agora flui naturalmente
+    <div className="w-full p-4 md:p-8 flex flex-col gap-6">
+      
       <header className="mt-4 lg:mt-0 shrink-0">
         <h2 className="text-primary-color-green font-bold text-2xl md:text-3xl">
           Dashboard
@@ -35,8 +40,11 @@ export default function Dashboard() {
         </p>
       </header>
 
-      <section className="flex flex-col gap-6 pb-8 xl:pb-0 xl:flex-1 xl:min-h-0">
-        <div className="xl:flex-1 xl:min-h-0">
+      {/* 2. Removido 'xl:flex-1' e 'xl:min-h-0' */}
+      <section className="flex flex-col gap-6 pb-8">
+        
+        {/* 3. Adicionada uma altura fixa no desktop (xl:h-[400px]) para o gráfico de barras não amassar */}
+        <div className="w-full xl:h-[400px]">
           <CustomBarChart 
             title="Análise em meses"
             tooltipLabel="Total Gasto"
@@ -48,7 +56,8 @@ export default function Dashboard() {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 xl:flex-1 xl:min-h-0">
+        {/* 4. Adicionada uma altura fixa no desktop (xl:h-[350px]) para a grade inferior */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 xl:h-[350px]">
           <CustomPieChart
             title="Gastos por categoria"
             subtitle="Março 2026"
@@ -56,6 +65,7 @@ export default function Dashboard() {
           />
           <GrowthAreaChart />
         </div>
+        
       </section>
     </div>
   )

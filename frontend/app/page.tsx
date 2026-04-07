@@ -146,7 +146,7 @@ export default function Login() {
                   Esqueci minha senha
                 </button>
                 
-                <button type="submit" className="bg-primary-color-green text-secondary-color-green font-bold text-base p-3 rounded-2xl my-5 cursor-pointer hover:opacity-90 transition-all shadow-md">
+                <button type="submit" className="bg-primary-color-green text-secondary-color-green font-semibold text-base p-3 rounded-2xl my-5 cursor-pointer hover:opacity-90 transition-all shadow-md">
                   Login
                 </button>
               </form>

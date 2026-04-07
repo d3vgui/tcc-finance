@@ -98,7 +98,7 @@ export default function TransactionModal({ isOpen, onClose, initialType }: Trans
 
         {/* Título Dinâmico */}
         <h2 className="text-2xl font-bold text-primary-color-green mb-6">
-          {initialType === "receita-mes" ? "Nova Receita do Mês" : "Nova Transação"}
+          {initialType === "receita-mes" ? "Nova receita do mês" : "Nova transação"}
         </h2>
 
         <form className="flex flex-col gap-5 p-2">
@@ -212,12 +212,12 @@ export default function TransactionModal({ isOpen, onClose, initialType }: Trans
 
           {/* Campo Nome */}
           <div className="flex flex-col gap-2 w-full">
-            <label className="text-primary-color-green font-semibold text-sm">Nome / Descrição</label>
+            <label className="text-primary-color-green font-semibold text-sm">Nome</label>
             <input
               type="text"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
-              placeholder="Ex: Salário, Conta de Luz..."
+              placeholder="Ex: Salário, freelancer..."
               className={`bg-line-gray border rounded-xl p-3.5 outline-none transition-all focus:ring-1 focus:ring-primary-color-green w-full text-sm
                 ${errors.nome ? 'border-red-500 ring-1 ring-red-500' : 'border-line-gray'}`}
             />
@@ -238,9 +238,9 @@ export default function TransactionModal({ isOpen, onClose, initialType }: Trans
           {/* Botão Salvar */}
           <button 
             onClick={handleSave}
-            className="bg-primary-color-green text-secondary-color-green font-bold text-base py-3.5 w-full rounded-xl hover:opacity-95 transition-all shadow-md mt-2 cursor-pointer"
+            className="bg-primary-color-green text-secondary-color-green font-semibold text-base py-3.5 w-full rounded-xl hover:opacity-95 transition-all shadow-md mt-2 cursor-pointer"
           >
-            Salvar Lançamento
+            Salvar lançamento
           </button>
         </form>
 
