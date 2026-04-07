@@ -11,8 +11,8 @@ export default function sideMenu({ children }: { children: React.ReactNode }) {
 
   const menuLinks = [
     { href: "/Home", label: "Início", icon: "/img-home.png"},
-    { href: "/Dashboard", label: "Dashboard", icon: "/img-dashboard.png"},
-    { href: "/Investments", label: "Investimentos", icon: "/img-investments.png" },
+    { href: "/Dashboard", label: "Dashboard", icon: "/img-dashboard.png"}
+    // { href: "/Investments", label: "Investimentos", icon: "/img-investments.png" },
   ]
 
   return (

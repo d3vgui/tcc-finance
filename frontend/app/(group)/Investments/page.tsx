@@ -57,7 +57,7 @@ export default function Investments() {
         <CardFinance value="R$ 13.525,41" title="Rico" />
         <CardFinance value="R$ 2.346,71" title="Binance" />
         <CardFinance value="R$ 10.671,24" title="XP Investimentos" />
-        <CardFinance value="R$ 60.671,24" title="Nubank" />
+        <CardFinance value="R$ 60.671,24" title="Nubank" />          
       </section>
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 xl:flex-1 xl:min-h-0">
         <CustomPieChart title="Investimentos atuais" data={investmentData} />
