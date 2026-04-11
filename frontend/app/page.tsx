@@ -2,6 +2,7 @@
 
 import Image from "next/image"
 import { useEffect, useState } from "react"
+import axios from 'axios'
 
 interface AuthErrors {
   nome?: boolean
@@ -58,29 +59,76 @@ export default function Login() {
     setConfirmPassword("")
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault() 
-    const newErrors: AuthErrors = {}
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const newErrors: AuthErrors = {};
 
-    if (!email.trim() || !email.includes("@")) newErrors.email = true
-    if (!password.trim() || password.length < 6) newErrors.password = true
+    if (!email.trim() || !email.includes("@")) newErrors.email = true;
+    if (!password.trim() || password.length < 6) newErrors.password = true;
 
     if (authMode === "register") {
-      if (!nome.trim()) newErrors.nome = true
-      if (!confirmPassword.trim() || password !== confirmPassword) newErrors.confirmPassword = true
+      if (!nome.trim()) newErrors.nome = true;
+      if (!confirmPassword.trim() || password !== confirmPassword) newErrors.confirmPassword = true;
     }
 
     if (authMode === "forgot") {
-      if (!confirmPassword.trim() || password !== confirmPassword) newErrors.confirmPassword = true
+      if (!confirmPassword.trim() || password !== confirmPassword) newErrors.confirmPassword = true;
     }
 
-    setErrors(newErrors)
+    setErrors(newErrors);
 
     if (Object.keys(newErrors).length === 0) {
-      console.log(`Sucesso no modo ${authMode}!`, { nome, email, password })
-      alert(authMode === "login" ? "Entrando..." : authMode === "register" ? "Conta criada com sucesso!" : "Senha redefinida com sucesso!")
+      try {
+        if (authMode === "register") {
+        
+          const dadosUsuario = {
+            name: nome, 
+            email: email,
+            password: password,
+          };
+
+          const resposta = await axios.post(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/users/signup`,
+            dadosUsuario
+          );
+
+          console.log("Usuário criado com sucesso:", resposta.data);
+          alert("Conta criada com sucesso!");
+          
+          switchMode("login"); 
+
+        } else if (authMode === "login") {
+          console.log("Chamada de login simulada", { email, password });
+          alert("Entrando...");
+
+        } else if (authMode === "forgot") {
+          console.log("Chamada de redefinição simulada", { email, password });
+          alert("Senha redefinida com sucesso!");
+        }
+
+      } catch (error: any) {
+        // --- SEU CONSOLE.LOG DETALHADO AQUI ---
+        console.log("=== DETALHES DO ERRO AXIOS ===");
+        console.log("Mensagem de erro principal:", error.message);
+        
+        if (error.response) {
+          // O backend respondeu com um erro (ex: 400, 404, 500)
+          console.log("Status do Backend:", error.response.status);
+          console.log("Resposta do Backend:", error.response.data);
+          alert(error.response.data.message || `Erro do servidor: ${error.response.status}`);
+        } else if (error.request) {
+          // A requisição foi feita, mas não houve resposta (Backend offline ou CORS)
+          console.log("Nenhuma resposta recebida. Problema de rede ou CORS.");
+          console.log("Detalhes do Request:", error.request);
+          alert("Não foi possível conectar ao servidor. O backend está rodando?");
+        } else {
+          // Algo aconteceu ao montar a requisição
+          console.log("Erro ao montar requisição:", error.message);
+        }
+        console.log("==============================");
+      }
     }
-  }
+  };
 
   const baseInputClass = "mt-2 bg-line-gray border p-3 rounded-2xl w-full shadow-lg placeholder:text-xs outline-none focus:ring-2 focus:ring-gradient-green transition-all"
   const errorInputClass = "border-red-500 ring-2 ring-red-500"
@@ -214,7 +262,7 @@ export default function Login() {
                       type="password" 
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Repita a senha" 
+                      placeholder="Confirme a senha" 
                       className={`${baseInputClass} ${errors.confirmPassword ? errorInputClass : defaultInputClass}`}
                     />
                     {errors.confirmPassword && (
