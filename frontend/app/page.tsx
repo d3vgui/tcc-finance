@@ -2,7 +2,8 @@
 
 import Image from "next/image"
 import { useEffect, useState } from "react"
-import axios from 'axios'
+import api from "../api"
+import { useRouter } from "next/navigation"
 
 interface AuthErrors {
   nome?: boolean
@@ -19,6 +20,9 @@ const phrasesEffect = [
 ]
 
 export default function Login() {
+
+  const router = useRouter()
+
   const [text, setText] = useState("")
   const [loop, setLoop] = useState(0)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -87,8 +91,8 @@ export default function Login() {
             password: password,
           };
 
-          const resposta = await axios.post(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/users/signup`,
+          const resposta = await api.post(
+            `/api/users/signup`,
             dadosUsuario
           );
 
@@ -98,8 +102,19 @@ export default function Login() {
           switchMode("login"); 
 
         } else if (authMode === "login") {
-          console.log("Chamada de login simulada", { email, password });
-          alert("Entrando...");
+          const dadosLogin = {
+            email: email,
+            password: password,
+          }
+
+          const resposta = await api.post(
+            `/api/users/login`,
+            dadosLogin,
+          )
+
+          console.log('Login realizado com sucesso: ', resposta.data)
+
+          router.push('/Home')
 
         } else if (authMode === "forgot") {
           console.log("Chamada de redefinição simulada", { email, password });
@@ -107,17 +122,17 @@ export default function Login() {
         }
 
       } catch (error: any) {
-        // --- SEU CONSOLE.LOG DETALHADO AQUI ---
+        // DETALHES DE ERROS GERADOS NO AXIOS
         console.log("=== DETALHES DO ERRO AXIOS ===");
         console.log("Mensagem de erro principal:", error.message);
         
         if (error.response) {
-          // O backend respondeu com um erro (ex: 400, 404, 500)
+          // BACKEND RESPONDEU COM ERRO (400, 404, 500)
           console.log("Status do Backend:", error.response.status);
           console.log("Resposta do Backend:", error.response.data);
           alert(error.response.data.message || `Erro do servidor: ${error.response.status}`);
         } else if (error.request) {
-          // A requisição foi feita, mas não houve resposta (Backend offline ou CORS)
+          // REQUISIÇÃO FEITA, MAS SEM RESPOSTA DO BACKEND POR CAUSA DO CORS
           console.log("Nenhuma resposta recebida. Problema de rede ou CORS.");
           console.log("Detalhes do Request:", error.request);
           alert("Não foi possível conectar ao servidor. O backend está rodando?");
