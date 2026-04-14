@@ -67,8 +67,8 @@ export default function Onboarding() {
           </h1>
           <Image
             src="/img-logo.png"
-            alt="Logo FinanceAI"
-            title="Logo FinanceAI"
+            alt="Logo SimpleFinance"
+            title="Logo SimpleFinance"
             width={12}
             height={12}
             quality={100}

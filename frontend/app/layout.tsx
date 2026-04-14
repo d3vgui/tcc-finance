@@ -8,8 +8,8 @@ const poppins = Poppins({
 })
 
 export const metadata: Metadata = {
-  title: "FinanceAI",
-  description: "Controle financeiro com IA" 
+  title: "SimpleFinance",
+  description: "Controle financeiro simples e prático" 
 }
 
 export default function RootLayout({

@@ -39,7 +39,7 @@ export default function sideMenu({ children }: { children: React.ReactNode }) {
       <header className="lg:hidden flex items-center justify-between bg-primary-color-green p-6 shadow-md z-30 relative">
         <div className="flex items-center gap-2">
           <span className="text-xl text-secondary-color-green font-semibold">
-            Finance<span className="text-white">AI</span>
+           Simple<span className="text-white">Finance</span>
           </span>
           <Image src="/img-logo.png" alt="Logo" width={24} height={24} />
         </div>

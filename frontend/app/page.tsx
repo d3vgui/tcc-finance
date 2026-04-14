@@ -155,8 +155,8 @@ export default function Login() {
         
         <div className="h-fit lg:w-3/6 lg:flex lg:flex-col lg:items-start">
           <div className="flex justify-center items-center gap-2 lg:gap-4">
-            <h2 className="text-3xl text-center text-secondary-color-green font-semibold lg:text-right lg:text-5xl xl:text-6xl">Finance<span className="text-white">AI</span></h2>
-            <Image src="/img-logo.png" alt="Logo FinanceAI" width={50} height={50} className="w-7 h-7 lg:w-12 lg:h-12" />
+            <h2 className="text-3xl text-center text-secondary-color-green font-semibold lg:text-right lg:text-5xl xl:text-6xl">Simple<span className="text-white">Finance</span></h2>
+            <Image src="/img-logo.png" alt="Logo SimpleFinance" width={50} height={50} className="w-7 h-7 lg:w-12 lg:h-12" />
           </div>
           <p className=" mt-4 text-xl text-white font-semibold text-center lg:text-3xl lg:mt-8 lg:text-left xl:text-4xl">Controlar suas finanças nunca foi tão fácil.</p>
           <p className="text-center text-white mt-4 text-lg font-semibold lg:text-2xl lg:mt-8 xl:text-3xl">{text}<span className={`text-secondary-color-green ${isPaused ? 'animate-pulse' : ''}`}>|</span></p>
