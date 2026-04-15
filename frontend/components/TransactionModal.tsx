@@ -140,7 +140,7 @@ export default function TransactionModal({ isOpen, onClose, initialType }: Trans
           )}
 
           {/* Se for Cartão de Crédito, mostra opção À Vista / Parcelado */}
-          {tipoGeral === "Despesa" && tipoDespesa === "Cartão de crédito" && (
+          {tipoGeral == "Despesa" && (
             <div className="flex gap-4 p-1 bg-line-gray rounded-xl mt-2">
               <button 
                 type="button"
@@ -163,7 +163,7 @@ export default function TransactionModal({ isOpen, onClose, initialType }: Trans
           <div className="flex flex-col md:flex-row gap-5">
             <div className="flex flex-col gap-2 w-full">
               <label className="text-primary-color-green font-semibold text-sm">
-                {tipoPagamento === "Parcelado" && tipoGeral === "Despesa" && tipoDespesa === "Cartão de crédito" ? "Valor da Parcela" : "Valor"}
+                {tipoPagamento === "Parcelado" && tipoGeral === "Despesa" ? "Valor da Parcela" : "Valor"}
               </label>
               <input
                 type="text"
@@ -188,7 +188,7 @@ export default function TransactionModal({ isOpen, onClose, initialType }: Trans
           </div>
 
           {/* Qtd Parcelas e Valor Total */}
-          {tipoGeral === "Despesa" && tipoDespesa === "Cartão de crédito" && tipoPagamento === "Parcelado" && (
+          {tipoGeral === "Despesa" && tipoPagamento === "Parcelado" && (
             <div className="flex flex-col md:flex-row gap-5 bg-[#E2F7D8] p-4 rounded-xl border border-secondary-color-green">
               <div className="flex flex-col gap-2 w-full">
                 <label className="text-primary-color-green font-semibold text-sm">Qtd. Parcelas</label>
