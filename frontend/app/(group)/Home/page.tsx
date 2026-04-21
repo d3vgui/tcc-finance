@@ -54,13 +54,13 @@ export default function Home() {
 
         <div className="flex flex-col gap-4 w-full md:w-3/6 xl:flex-row xl:justify-end">
           
-          <button 
+          {/* <button 
             onClick={openRevenueModal} 
             className="bg-primary-color-green p-3 md:px-6 rounded-xl flex items-center justify-center gap-3 text-secondary-color-green font-semibold text-sm w-full md:w-auto hover:opacity-90 transition-opacity cursor-pointer"
           >
             <Image src="/img-add.png" alt="Ícone nova transação" height={20} width={20} />
             Nova receita do mês
-          </button>
+          </button> */}
           
           <button 
             onClick={openTransactionModal} 
@@ -113,7 +113,6 @@ export default function Home() {
       <TransactionModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        initialType={modalType} 
       />
       
     </div>
