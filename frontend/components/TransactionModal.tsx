@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import CategoryModal from "./CategoryModal";
+import axios from "axios";
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -17,6 +18,13 @@ interface FormErrors {
   categoria?: boolean;
 }
 
+interface CategoriaDoBanco {
+  _id: string;
+  category_name: string;
+  category_type: string;
+  cor_hex: string;
+}
+
 export default function TransactionModal({
   isOpen,
   onClose,
@@ -25,6 +33,7 @@ export default function TransactionModal({
   const [tipoGeral, setTipoGeral] = useState<"Receita" | "Despesa">("Despesa");
   const [tipoDespesa, setTipoDespesa] = useState("");
   const [tipoPagamento, setTipoPagamento] = useState("À vista");
+  const [categorias, setCategorias] = useState<CategoriaDoBanco[]>([]);
 
   const [nome, setNome] = useState("");
   const [data, setData] = useState("");
@@ -34,7 +43,17 @@ export default function TransactionModal({
 
   const [errors, setErrors] = useState<FormErrors>({});
 
-  // Efeito para resetar os campos sempre que o modal abrir
+  const fetchCategorias = async () => {
+    try {
+      const response = await axios.get("http://localhost:3001/api/categories/list", {
+        withCredentials: true,
+      });
+      setCategorias(response.data);
+    } catch (error) {
+      console.error("Erro ao buscar categorias:", error);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       setTipoGeral("Despesa");
@@ -46,8 +65,16 @@ export default function TransactionModal({
       setComentario("");
       setQtdParcelas("");
       setErrors({});
+      
+      fetchCategorias(); 
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isCategoryModalOpen && isOpen) {
+      fetchCategorias();
+    }
+  }, [isCategoryModalOpen]);
 
   const handleCurrencyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, "");
@@ -77,10 +104,11 @@ export default function TransactionModal({
     }).format(total);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: FormErrors = {};
 
+    // VALIDAÇÃO DO FRONT-END
     if (!nome.trim()) newErrors.nome = true;
     if (!data.trim()) newErrors.data = true;
     if (!valor.trim() || valor === "R$ 0,00") newErrors.valor = true;
@@ -88,7 +116,6 @@ export default function TransactionModal({
 
     if (
       tipoGeral === "Despesa" &&
-      tipoDespesa === "Cartão de crédito" &&
       tipoPagamento === "Parcelado"
     ) {
       if (!qtdParcelas.trim() || parseInt(qtdParcelas) <= 0)
@@ -98,34 +125,53 @@ export default function TransactionModal({
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length === 0) {
-      console.log("Salvo com sucesso!", {
-        tipoGeral,
-        tipoDespesa,
-        tipoPagamento,
-        nome,
-        data,
-        valor,
-        comentario,
-        qtdParcelas,
-      });
-      onClose(); // Fecha o modal após salvar
+      try {
+        // TRANSFORMA O NÚMERO EM PURO PARA O BD
+        const numericValor = parseFloat(
+          valor.replace(/[R$\s\.]/g, "").replace(",", ".")
+        );
+
+        const descricaoCompleta = comentario 
+            ? `${nome} - ${comentario}` 
+            : nome;
+
+        const payload = {
+          type: tipoGeral.toLowerCase(),
+          category_id: tipoDespesa,
+          value: numericValor,
+          transaction_date: data,
+          descript: descricaoCompleta,
+          // GERE O TIPO DE PAGAMENTO DA DESPESA
+          payment_method: tipoGeral === "Despesa" ? tipoPagamento : undefined,
+          total_installments: tipoPagamento === "Parcelado" ? parseInt(qtdParcelas, 10) : 1
+        };
+
+        // ENVIA PARA O POST PARA A API
+        const response = await axios.post("http://localhost:3001/api/transactions/post", payload, {
+          withCredentials: true,
+        });
+
+        console.log("Transação salva com sucesso no banco!", response.data);
+        
+        onClose(); 
+
+      } catch (error: any) {
+        console.error("Erro ao salvar transação:", error.response?.data || error.message);
+        
+        if (error.response?.status === 401) {
+          alert("Sua sessão expirou. Faça login novamente.");
+        } else {
+          alert("Ocorreu um erro ao tentar salvar a transação.");
+        }
+      }
     }
   };
 
   // Se não estiver aberto, não renderiza nada
   if (!isOpen) return null;
 
-  const categoriasDoBanco = [
-    { id: 1, nome: "Gastos diversos", tipo: "Despesa" },
-    { id: 2, nome: "Gastos mensais", tipo: "Despesa" },
-    { id: 3, nome: "Cartão de crédito", tipo: "Despesa" },
-    { id: 4, nome: "Salário", tipo: "Receita" },
-    { id: 5, nome: "Freelancer", tipo: "Receita" },
-    { id: 6, nome: "Rendimentos", tipo: "Receita" },
-  ];
-
-  const categoriasFiltradas = categoriasDoBanco.filter(
-    (cat) => cat.tipo === tipoGeral,
+  const categoriasFiltradas = categorias.filter(
+    (cat) => cat.category_type === tipoGeral.toLowerCase(),
   );
 
   return (
@@ -196,8 +242,8 @@ export default function TransactionModal({
                 </option>
 
                 {categoriasFiltradas.map((cat) => (
-                  <option key={cat.id} value={cat.nome}>
-                    {cat.nome}
+                  <option key={cat._id} value={cat._id}>
+                    {cat.category_name}
                   </option>
                 ))}
               </select>
