@@ -30,9 +30,11 @@ mongoose.connect(process.env.MONGO_URL)
 
 const userRoutes = require('./routes/users')
 const categoryRoutes = require('./routes/categories')
+const transactionRoutes = require('./routes/transactions')
 
 app.use('/api/users', userRoutes)
 app.use('/api/categories', categoryRoutes)
+app.use('/api/transactions', transactionRoutes)
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
