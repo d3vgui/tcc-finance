@@ -32,7 +32,7 @@ export default function TransactionModal({ isOpen, onClose, transactionToEdit, o
 
   const fetchCategorias = async () => {
     try {
-      const response = await axios.get("http://localhost:3001/api/categories/list", { withCredentials: true });
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/categories/list`, { withCredentials: true });
       setCategorias(response.data);
     } catch (error) {
       console.error("Erro ao buscar categorias:", error);
@@ -133,11 +133,11 @@ export default function TransactionModal({ isOpen, onClose, transactionToEdit, o
         };
         if (transactionToEdit) {
            // MODO EDIÇÃO: Rota PUT com o ID
-           await axios.put(`http://localhost:3001/api/transactions/${transactionToEdit._id}`, payload, { withCredentials: true });
+           await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/transactions/${transactionToEdit._id}`, payload, { withCredentials: true });
            console.log("Editado com sucesso!");
         } else {
            // MODO CRIAÇÃO: Rota POST
-           await axios.post("http://localhost:3001/api/transactions/post", payload, { withCredentials: true });
+           await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/transactions/post`, payload, { withCredentials: true });
            console.log("Criado com sucesso!");
         }
 

@@ -60,7 +60,7 @@ export default function TransactionsTable({ transacoesFiltradas, isLoading, onUp
   const executeDelete = async (deleteAll: boolean) => {
     if (!transactionToDelete) return;
     try {
-      await axios.delete(`http://localhost:3001/api/transactions/${transactionToDelete._id}?deleteAll=${deleteAll}`, { 
+      await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/transactions/${transactionToDelete._id}?deleteAll=${deleteAll}`, { 
         withCredentials: true 
       });
       onUpdateData(); // Avisa a Home que apagou, para ela recalcular os cards!
