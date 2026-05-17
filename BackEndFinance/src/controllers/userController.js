@@ -1,4 +1,5 @@
 const User = require('../models/User')
+require('dotenv').config();
 const asyncHandler = require('express-async-handler')
 const { body, validationResult } = require('express-validator')
 const bcrypt = require('bcryptjs')
@@ -9,8 +10,8 @@ const nodemailer = require('nodemailer')
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'simplefinanceprojeto@gmail.com',
-        pass: 'ymeh amtq qwsk iqet'
+        user: process.env.NODEMAILER_USER,
+        pass: process.env.NODEMAILER_PASSWORD
     }
 });
 
