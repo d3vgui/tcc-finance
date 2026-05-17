@@ -16,4 +16,8 @@ router.get('/me', authMiddleware, user_controller.user_profile_get);
 
 router.post('/logout', user_controller.user_logout_post);
 
+router.post('/forgot-password', user_controller.forgot_password_post);
+
+router.post('/reset-password', user_controller.reset_password_post);
+
 module.exports = router;

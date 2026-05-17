@@ -1,216 +1,185 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
-import { HexColorPicker } from "react-colorful";
-import Cookies from "js-cookie";
 
 interface CategoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  tipoGeralAtual?: "Receita" | "Despesa";
+  tipoGeralAtual: string; 
 }
 
-const PALETA_DE_CORES = [
-  "#FF5733", "#10B981", "#3B82F6", "#8B5CF6", "#EC4899", "#F59E0B",
-];
-
-export default function CategoryModal({
-  isOpen,
-  onClose,
-  tipoGeralAtual = "Despesa",
-}: CategoryModalProps) {
+export default function CategoryModal({ isOpen, onClose, tipoGeralAtual }: CategoryModalProps) {
   const [categoryName, setCategoryName] = useState("");
-  const [categoryType, setCategoryType] = useState<"Receita" | "Despesa">(tipoGeralAtual);
-  const [corHex, setCorHex] = useState(PALETA_DE_CORES[0]);
+  const [corHex, setCorHex] = useState("#2ECC71");
+  const [categorias, setCategorias] = useState<any[]>([]);
   
-  // Novo estado para controlar se a paleta estilo "Paint" está aberta
-  const [showPicker, setShowPicker] = useState(false);
+  // Estados para Edição
+  const [editingId, setEditingId] = useState<string | null>(null);
   
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(false);
+  // Estados para Pop-ups
+  const [msgErro, setMsgErro] = useState(""); 
+  const [categoryToDelete, setCategoryToDelete] = useState<any | null>(null);
 
-  // Referência para fechar o modal de cor se clicar fora dele
-  const pickerRef = useRef<HTMLDivElement>(null);
+  const fetchCategorias = async () => {
+    const res = await axios.get("http://localhost:3001/api/categories/list", { withCredentials: true });
+    setCategorias(res.data);
+  };
 
-  useEffect(() => {
+  useEffect(() => { 
     if (isOpen) {
-      setCategoryName("");
-      setCategoryType(tipoGeralAtual);
-      setCorHex(PALETA_DE_CORES[0]);
-      setError(false);
-      setIsLoading(false);
-      setShowPicker(false);
+      fetchCategorias();
+      resetForm();
     }
-  }, [isOpen, tipoGeralAtual]);
+  }, [isOpen]);
 
-  // Efeito para fechar a paleta ao clicar fora dela
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
-        setShowPicker(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const resetForm = () => {
+    setCategoryName("");
+    setCorHex("#2ECC71");
+    setEditingId(null);
+    setMsgErro("");
+    setCategoryToDelete(null);
+  };
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!categoryName.trim()) {
-      setError(true);
-      return;
-    }
-
-    setIsLoading(true);
+    if (!categoryName.trim()) return;
 
     try {
-      // 1. A URL correta é apenas /api/categories (sem o /post) e a porta geralmente é 3000 do back-end
-      const response = await axios.post("http://localhost:3001/api/categories/post", {
-        // 2. Não enviamos o user_id. O back-end se vira com o cookie!
-        category_name: categoryName,
-        // 3. Forçamos para minúsculo para passar no express-validator ('receita' ou 'despesa')
-        category_type: categoryType.toLowerCase(), 
-        cor_hex: corHex,
-      }, {
-        // 4. ESSA É A MÁGICA! Isso avisa o navegador para anexar o cookie httpOnly escondido.
-        withCredentials: true 
-      });
-
-      console.log("Categoria criada com sucesso:", response.data);
-      onClose();
-      
-    } catch (err: any) {
-      console.error("Erro na API:", err.response?.data || err.message);
-      
-      if (err.response?.status === 401) {
-        alert("Não autorizado! Verifique se você está logado.");
-      } else if (err.response?.status === 400) {
-        alert(`Erro de validação: ${err.response.data.error}`);
+      if (editingId) {
+        await axios.put(`http://localhost:3001/api/categories/${editingId}`, {
+          category_name: categoryName,
+          category_type: tipoGeralAtual.toLowerCase(),
+          cor_hex: corHex
+        }, { withCredentials: true });
       } else {
-        alert("Ocorreu um erro ao salvar a categoria. Verifique o console.");
+        await axios.post("http://localhost:3001/api/categories/post", {
+          category_name: categoryName,
+          category_type: tipoGeralAtual.toLowerCase(),
+          cor_hex: corHex
+        }, { withCredentials: true });
       }
-    } finally {
-      setIsLoading(false);
+      
+      resetForm();
+      fetchCategorias();
+    } catch (error: any) {
+      setMsgErro(error.response?.data?.error || "Erro ao salvar a categoria.");
+    }
+  };
+
+  const handleEditClick = (cat: any) => {
+    setCategoryName(cat.category_name);
+    setCorHex(cat.cor_hex);
+    setEditingId(cat._id);
+  };
+
+  const confirmDelete = async () => {
+    if (!categoryToDelete) return;
+    
+    try {
+      await axios.delete(`http://localhost:3001/api/categories/delete/${categoryToDelete._id}`, { withCredentials: true });
+      setCategoryToDelete(null);
+      fetchCategorias();
+    } catch (error) {
+      console.error("Erro ao excluir", error);
+      setMsgErro("Ocorreu um erro ao tentar excluir a categoria.");
+      setCategoryToDelete(null);
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl relative">
-        <button
-          onClick={onClose}
-          disabled={isLoading}
-          className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors text-xl font-bold cursor-pointer disabled:opacity-50"
-        >
-          ✕
-        </button>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl relative">
+        <button onClick={onClose} className="absolute top-4 right-5 text-gray-400 hover:text-gray-600 transition-colors text-xl font-bold">✕</button>
+        
+        <h2 className="text-xl font-bold text-primary-color-green mb-4">Gerenciar Categorias ({tipoGeralAtual})</h2>
 
-        <h2 className="text-xl font-bold text-primary-color-green mb-6">
-          Nova Categoria
-        </h2>
-
-        <form className="flex flex-col gap-5" onSubmit={handleSave}>
-          <div className="flex gap-4 p-1 bg-line-gray rounded-xl">
-            <button
-              type="button"
-              onClick={() => setCategoryType("Despesa")}
-              className={`flex-1 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${categoryType === "Despesa" ? "bg-white text-primary-color-green shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-            >
-              Despesa
-            </button>
-            <button
-              type="button"
-              onClick={() => setCategoryType("Receita")}
-              className={`flex-1 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${categoryType === "Receita" ? "bg-white text-primary-color-green shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-            >
-              Receita
-            </button>
-          </div>
-
-          <div className="flex flex-col gap-2 w-full">
-            <label className="text-primary-color-green font-semibold text-sm">Nome</label>
-            <input
-              type="text"
-              value={categoryName}
-              onChange={(e) => {
-                setCategoryName(e.target.value);
-                setError(false);
-              }}
-              placeholder="Ex: Alimentação..."
-              className={`bg-line-gray border rounded-xl p-3.5 outline-none transition-all focus:ring-1 focus:ring-primary-color-green w-full text-sm font-medium text-primary-color-green
-                ${error ? "border-red-500 ring-1 ring-red-500" : "border-line-gray"}`}
-              disabled={isLoading}
+        {/* Formulário de Criação / Edição */}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3 mb-6 bg-line-gray/30 p-4 rounded-2xl border border-line-gray">
+          <label className="text-xs font-bold text-primary-color-green uppercase">
+            {editingId ? "Editando categoria:" : "Nova categoria:"}
+          </label>
+          <input 
+            type="text" 
+            placeholder="Nome da categoria" 
+            value={categoryName}
+            onChange={(e) => setCategoryName(e.target.value)}
+            className="p-3 rounded-xl border border-line-gray outline-none focus:ring-1 focus:ring-primary-color-green text-sm"
+          />
+          <div className="flex items-center gap-3">
+            <input 
+              type="color" 
+              value={corHex} 
+              onChange={(e) => setCorHex(e.target.value)} 
+              title="Escolha a cor"
+              className="w-10 h-10 p-0 border-none bg-transparent cursor-pointer rounded-full overflow-hidden [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch]:rounded-full [&::-moz-color-swatch]:border-none [&::-moz-color-swatch]:rounded-full" 
             />
+            <button className={`flex-1 text-white py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm ${editingId ? 'bg-blue-500 hover:bg-blue-600' : 'bg-primary-color-green hover:opacity-90'}`}>
+              {editingId ? "Salvar Alteração" : "Adicionar Categoria"}
+            </button>
+            
+            {editingId && (
+              <button type="button" onClick={resetForm} className="px-3 py-2.5 text-sm font-semibold text-gray-500 hover:text-gray-700 bg-gray-200 rounded-xl">
+                Cancelar
+              </button>
+            )}
           </div>
+        </form>
 
-          {/* ÁREA DE SELAÇÃO DE CORES */}
-          <div className="flex flex-col gap-3 w-full">
-            <label className="text-primary-color-green font-semibold text-sm">Cor da Categoria</label>
-            <div className="flex gap-3 items-center">
-              
-              {/* BOLINHA COM CORES */}
-              {PALETA_DE_CORES.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  onClick={() => {
-                    setCorHex(color);
-                    setShowPicker(false);
-                  }}
-                  className={`w-8 h-8 rounded-full cursor-pointer transition-all ${corHex === color ? "scale-125 ring-2 ring-offset-2 ring-primary-color-green" : "hover:scale-110"}`}
-                  style={{ backgroundColor: color }}
-                />
-              ))}
+        {/* Listagem para Editar/Excluir */}
+        <div className="max-h-56 overflow-y-auto custom-scrollbar pr-2">
+          <p className="text-xs font-bold text-gray-400 uppercase mb-2">Suas Categorias</p>
+          
+          {categorias.filter(c => c.category_type === tipoGeralAtual.toLowerCase()).length === 0 && (
+             <p className="text-sm text-gray-500 text-center py-4">Nenhuma categoria encontrada.</p>
+          )}
 
-              <div className="w-px h-6 bg-gray-300 mx-1"></div>
-
-              {/* BOTÃO PARA ABRIR PALETA DE CORES */}
-              <div className="relative" ref={pickerRef}>
-                <button
-                  type="button"
-                  onClick={() => setShowPicker(!showPicker)}
-                  className="w-10 h-10 rounded-xl cursor-pointer border-2 border-gray-300 hover:scale-105 transition-transform flex items-center justify-center text-xl shadow-sm"
-                  style={{ backgroundColor: corHex }}
-                  title="Escolher cor personalizada"
-                >
-                  {/* ÍCONE PARA CRIAR UMA NOVA COR */}
-                  <span className="text-white drop-shadow-md font-bold text-lg mix-blend-difference">+</span>
-                </button>
-
-                {/* MODAL DE PALETA DE CORES (só aparece se showPicker for true) */}
-                {showPicker && (
-                  <div className="absolute top-12 -right-4 md:left-0 z-50 p-3 bg-white rounded-2xl shadow-xl border border-gray-100 animate-fade-in">
-                    <HexColorPicker color={corHex} onChange={setCorHex} />
-                    
-                    <div className="mt-3 flex items-center gap-2 bg-line-gray p-2 rounded-lg">
-                      <span className="text-xs font-semibold text-gray-500">HEX</span>
-                      <input 
-                        type="text" 
-                        value={corHex}
-                        onChange={(e) => setCorHex(e.target.value)}
-                        className="bg-transparent border-none outline-none text-sm font-medium w-full uppercase"
-                        maxLength={7}
-                      />
-                    </div>
-                  </div>
-                )}
+          {categorias.filter(c => c.category_type === tipoGeralAtual.toLowerCase()).map(cat => (
+            <div key={cat._id} className="flex items-center justify-between p-3 border-b border-line-gray last:border-0 hover:bg-zinc-50 rounded-lg transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="w-3.5 h-3.5 rounded-full shadow-sm" style={{ backgroundColor: cat.cor_hex }}></div>
+                <span className="text-sm font-medium text-text-login">{cat.category_name}</span>
               </div>
+              <div className="flex gap-4">
+                <button onClick={() => handleEditClick(cat)} className="text-blue-500 hover:text-blue-700 transition-colors" title="Editar">✏️</button>
+                <button onClick={() => setCategoryToDelete(cat)} className="text-red-500 hover:text-red-700 transition-colors" title="Excluir">🗑️</button>
+              </div>
+            </div>
+          ))}
+        </div>
 
+        {/* --- POP-UP DE ERRO (DUPLICIDADE) --- */}
+        {msgErro && (
+          <div className="absolute inset-0 bg-white/95 rounded-3xl flex flex-col items-center justify-center p-6 text-center animate-fade-in z-10">
+            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4 text-2xl">⚠️</div>
+            <h3 className="font-bold text-primary-color-green mb-2">Atenção</h3>
+            <p className="text-sm text-text-login mb-6 font-medium">{msgErro}</p>
+            <button onClick={() => setMsgErro("")} className="bg-primary-color-green text-white px-8 py-3 rounded-xl font-bold hover:opacity-90 transition-all">Entendido</button>
+          </div>
+        )}
+
+        {/* --- POP-UP CUSTOMIZADO DE EXCLUSÃO --- */}
+        {categoryToDelete && (
+          <div className="absolute inset-0 bg-white/95 rounded-3xl flex flex-col items-center justify-center p-6 text-center animate-fade-in z-20">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4 text-2xl">🗑️</div>
+            <h3 className="text-xl font-bold text-primary-color-green mb-2">Excluir categoria?</h3>
+            <p className="text-sm text-text-login mb-6 font-medium">
+              Certeza que você quer excluir a categoria <strong className="text-primary-color-green">"{categoryToDelete.category_name}"</strong>?<br/><br/>
+              <span className="text-gray-500 text-xs">As transações vinculadas a ela ficarão sem categoria.</span>
+            </p>
+            <div className="flex gap-3 w-full">
+              <button onClick={() => setCategoryToDelete(null)} className="flex-1 py-3 bg-line-gray text-primary-color-green font-semibold text-sm rounded-xl hover:bg-gray-200 transition-colors">
+                Cancelar
+              </button>
+              <button onClick={confirmDelete} className="flex-1 py-3 bg-red-500 text-white font-semibold text-sm rounded-xl hover:bg-red-600 transition-colors">
+                Sim, excluir
+              </button>
             </div>
           </div>
+        )}
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="bg-primary-color-green text-secondary-color-green font-semibold text-base py-3.5 w-full rounded-xl hover:opacity-95 transition-all shadow-md mt-2 cursor-pointer disabled:opacity-70"
-          >
-            {isLoading ? "Salvando..." : "Salvar Categoria"}
-          </button>
-        </form>
       </div>
     </div>
   );

@@ -7,17 +7,24 @@ const api = axios.create({
 })
 
 api.interceptors.response.use(
-    (response) => {
-        return response
-    },
-    (error) => {
-        if (error.response && error.response.status === 401) {
-            if (typeof window !== 'undefined') {
-                window.location.href = '/'
-            }
-        }
-        return Promise.reject(error);
-    }
-)
+  (response) => {
+    return response;
+  },
+  (error) => {
+    const isAuthRoute = 
+        error.config.url.includes('/api/users/login') || 
+        error.config.url.includes('/api/users/forgot-password') ||
+        error.config.url.includes('/api/users/reset-password');
 
-export default api
+    if (error.response && error.response.status === 401 && !isAuthRoute) {
+  
+      console.log('Token expirado. Fazendo logout...');
+
+      window.location.reload();
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
+export default api;

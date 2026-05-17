@@ -2,9 +2,10 @@
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 
-interface DataItem{
+interface DataItem {
   name: string
   value: number
+  fill?: string
 }
 
 interface CustomPieChartProps {
@@ -37,20 +38,23 @@ export default function CustomPieChart({ title, subtitle, data, colors = default
               stroke="none"
             >
               {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={entry.fill || colors[index % colors.length]} 
+                />
               ))}
             </Pie>
             
             <Tooltip 
               contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '4px 4px 8px -1px rgb(0 0 0 / 0.1)' }}
-              formatter={(value: any) => [`R$ ${value}`, 'Total']} 
+              formatter={(value: any) => [`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Total']} 
             />
             
             <Legend 
               verticalAlign="bottom" 
               height={36}
               iconType="circle"
-              wrapperStyle={{ fontSize: '12px', fontWeight: '500', color: '#1F4842' }}
+              wrapperStyle={{ fontSize: '12px', fontWeight: '500', color: '#1F4842', paddingTop: '20px' }}
             />
           </PieChart>
         </ResponsiveContainer>

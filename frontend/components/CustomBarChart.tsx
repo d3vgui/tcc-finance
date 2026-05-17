@@ -35,7 +35,9 @@ export default function CustomBarChart({ title = "Análise em meses", tooltipLab
   const isMobile = windowWidth < 768
   const currentBarSize = isMobile ? 20 : 40
 
-  return (
+  const dadosFiltrados = data.filter((item) => item.total > 0)
+
+return (
     <div className="w-full rounded-2xl border-2 border-line-gray p-4 lg:p-6 shadow-md flex flex-col gap-6 xl:h-full">
       
       {/* CABEÇALHO DO GRÁFICO */}
@@ -61,23 +63,31 @@ export default function CustomBarChart({ title = "Análise em meses", tooltipLab
       {/* ÁREA DO GRÁFICO */}
       <div className="w-full overflow-x-auto custom-scrollbar xl:flex-1 xl:min-h-0">
         <div className="h-75 xl:h-full min-w-125 md:min-w-full pr-4">
-          <ResponsiveContainer width="100%" height="100%">
-            
-            <BarChart data={data} margin={{ top: 20, right: 0, left: -15, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EDEDEF" />
-              <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{ fill: '#898989', fontSize: 12 }} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#898989', fontSize: 10 }} tickFormatter={(value) => `R$${value}`} />
-              
-              <Tooltip 
-                cursor={{ fill: '#f4f4f5' }} 
-                contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '4px 4px 8px -1px rgb(0 0 0 / 0.1)' }}
-                formatter={(value: any) => [`R$ ${value}`, tooltipLabel]} // Tooltip dinâmico!
-              />
-              
-              <Bar dataKey="total" fill="#1F4842" radius={[8, 8, 8, 8]} maxBarSize={currentBarSize} />
-            </BarChart>
+          
+          {/* VERIFICAÇÃO: Mostra uma mensagem amigável se não tiver dados no ano */}
+          {dadosFiltrados.length === 0 ? (
+             <div className="w-full h-full flex items-center justify-center text-gray-400 font-medium">
+               Nenhuma despesa registrada neste período.
+             </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              {/* Repare que agora usamos "data={dadosFiltrados}" em vez de "data={data}" */}
+              <BarChart data={dadosFiltrados} margin={{ top: 20, right: 0, left: -15, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EDEDEF" />
+                <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{ fill: '#898989', fontSize: 12 }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#898989', fontSize: 10 }} tickFormatter={(value) => `R$${value}`} />
+                
+                <Tooltip 
+                  cursor={{ fill: '#f4f4f5' }} 
+                  contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '4px 4px 8px -1px rgb(0 0 0 / 0.1)' }}
+                  formatter={(value: any) => [`R$ ${value}`, tooltipLabel]} 
+                />
+                
+                <Bar dataKey="total" fill="#1F4842" radius={[8, 8, 8, 8]} maxBarSize={currentBarSize} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
 
-          </ResponsiveContainer>
         </div>
       </div>
 

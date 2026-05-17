@@ -8,27 +8,14 @@ import axios from "axios";
 interface TransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
+  transactionToEdit?: any | null;
+  onSaveSuccess?: () => void; // <--- ADICIONE ESTA LINHA
 }
 
-interface FormErrors {
-  nome?: boolean;
-  data?: boolean;
-  valor?: boolean;
-  qtdParcelas?: boolean;
-  categoria?: boolean;
-}
+interface FormErrors { nome?: boolean; data?: boolean; valor?: boolean; qtdParcelas?: boolean; categoria?: boolean; }
+interface CategoriaDoBanco { _id: string; category_name: string; category_type: string; cor_hex: string; }
 
-interface CategoriaDoBanco {
-  _id: string;
-  category_name: string;
-  category_type: string;
-  cor_hex: string;
-}
-
-export default function TransactionModal({
-  isOpen,
-  onClose,
-}: TransactionModalProps) {
+export default function TransactionModal({ isOpen, onClose, transactionToEdit, onSaveSuccess }: TransactionModalProps) {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [tipoGeral, setTipoGeral] = useState<"Receita" | "Despesa">("Despesa");
   const [tipoDespesa, setTipoDespesa] = useState("");
@@ -45,9 +32,7 @@ export default function TransactionModal({
 
   const fetchCategorias = async () => {
     try {
-      const response = await axios.get("http://localhost:3001/api/categories/list", {
-        withCredentials: true,
-      });
+      const response = await axios.get("http://localhost:3001/api/categories/list", { withCredentials: true });
       setCategorias(response.data);
     } catch (error) {
       console.error("Erro ao buscar categorias:", error);
@@ -56,84 +41,86 @@ export default function TransactionModal({
 
   useEffect(() => {
     if (isOpen) {
-      setTipoGeral("Despesa");
-      setTipoDespesa("");
-      setTipoPagamento("À vista");
-      setNome("");
-      setData("");
-      setValor("");
-      setComentario("");
-      setQtdParcelas("");
-      setErrors({});
-      
       fetchCategorias(); 
+      setErrors({});
+
+      if (transactionToEdit) {
+        // MODO EDIÇÃO: Preenche os dados
+        setTipoGeral(transactionToEdit.type === "receita" ? "Receita" : "Despesa");
+        setTipoDespesa(transactionToEdit.category_id?._id || "");
+        setTipoPagamento(transactionToEdit.payment_method || "À vista");
+        
+        // Separa Nome e Comentário
+        const partesTexto = transactionToEdit.descript ? transactionToEdit.descript.split(" - ") : [""];
+        setNome(partesTexto[0] || "");
+        setComentario(partesTexto.length > 1 ? partesTexto.slice(1).join(" - ") : "");
+
+        // Formata o valor para a máscara R$ X,XX
+        const formatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+        setValor(formatter.format(transactionToEdit.value));
+
+        // Formata a data para o input date (YYYY-MM-DD)
+        const d = new Date(transactionToEdit.transaction_date);
+        const isoDate = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+        setData(isoDate);
+
+        // Se tiver parcelas
+        if (transactionToEdit.installments?.total) {
+          setQtdParcelas(transactionToEdit.installments.total.toString());
+        } else {
+          setQtdParcelas("");
+        }
+
+      } else {
+        setTipoGeral("Despesa");
+        setTipoDespesa("");
+        setTipoPagamento("À vista");
+        setNome("");
+        setData("");
+        setValor("");
+        setComentario("");
+        setQtdParcelas("");
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, transactionToEdit]);
 
   useEffect(() => {
-    if (!isCategoryModalOpen && isOpen) {
-      fetchCategorias();
-    }
+    if (!isCategoryModalOpen && isOpen) fetchCategorias();
   }, [isCategoryModalOpen]);
 
   const handleCurrencyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, "");
-    if (value === "") {
-      setValor("");
-      return;
-    }
+    if (value === "") { setValor(""); return; }
     const numericValue = parseInt(value, 10) / 100;
-    setValor(
-      new Intl.NumberFormat("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      }).format(numericValue),
-    );
+    setValor(new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(numericValue));
   };
 
-  // Calcula o valor total se for parcelado
   const calcularTotalParcelado = () => {
     if (!valor || !qtdParcelas) return "R$ 0,00";
-    const numericValor = parseFloat(
-      valor.replace("R$", "").replace(".", "").replace(",", "."),
-    );
+    const numericValor = parseFloat(valor.replace(/[R$\s\.]/g, "").replace(",", "."));
     const total = numericValor * parseInt(qtdParcelas, 10);
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(total);
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(total);
   };
 
-const handleSave = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: FormErrors = {};
 
-    // VALIDAÇÃO DO FRONT-END
     if (!nome.trim()) newErrors.nome = true;
     if (!data.trim()) newErrors.data = true;
     if (!valor.trim() || valor === "R$ 0,00") newErrors.valor = true;
     if (!tipoDespesa) newErrors.categoria = true;
 
-    if (
-      tipoGeral === "Despesa" &&
-      tipoPagamento === "Parcelado"
-    ) {
-      if (!qtdParcelas.trim() || parseInt(qtdParcelas) <= 0)
-        newErrors.qtdParcelas = true;
+    if (tipoGeral === "Despesa" && tipoPagamento === "Parcelado") {
+      if (!qtdParcelas.trim() || parseInt(qtdParcelas) <= 0) newErrors.qtdParcelas = true;
     }
 
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length === 0) {
       try {
-        // TRANSFORMA O NÚMERO EM PURO PARA O BD
-        const numericValor = parseFloat(
-          valor.replace(/[R$\s\.]/g, "").replace(",", ".")
-        );
-
-        const descricaoCompleta = comentario 
-            ? `${nome} - ${comentario}` 
-            : nome;
+        const numericValor = parseFloat(valor.replace(/[R$\s\.]/g, "").replace(",", "."));
+        const descricaoCompleta = comentario ? `${nome} - ${comentario}` : nome;
 
         const payload = {
           type: tipoGeral.toLowerCase(),
@@ -141,248 +128,117 @@ const handleSave = async (e: React.FormEvent) => {
           value: numericValor,
           transaction_date: data,
           descript: descricaoCompleta,
-          // GERE O TIPO DE PAGAMENTO DA DESPESA
           payment_method: tipoGeral === "Despesa" ? tipoPagamento : undefined,
           total_installments: tipoPagamento === "Parcelado" ? parseInt(qtdParcelas, 10) : 1
         };
-
-        // ENVIA PARA O POST PARA A API
-        const response = await axios.post("http://localhost:3001/api/transactions/post", payload, {
-          withCredentials: true,
-        });
-
-        console.log("Transação salva com sucesso no banco!", response.data);
-        
-        onClose(); 
-
-      } catch (error: any) {
-        console.error("Erro ao salvar transação:", error.response?.data || error.message);
-        
-        if (error.response?.status === 401) {
-          alert("Sua sessão expirou. Faça login novamente.");
+        if (transactionToEdit) {
+           // MODO EDIÇÃO: Rota PUT com o ID
+           await axios.put(`http://localhost:3001/api/transactions/${transactionToEdit._id}`, payload, { withCredentials: true });
+           console.log("Editado com sucesso!");
         } else {
-          alert("Ocorreu um erro ao tentar salvar a transação.");
+           // MODO CRIAÇÃO: Rota POST
+           await axios.post("http://localhost:3001/api/transactions/post", payload, { withCredentials: true });
+           console.log("Criado com sucesso!");
         }
+
+        if (onSaveSuccess) {
+          onSaveSuccess();
+        }
+
+        onClose(); 
+      } catch (error: any) {
+        console.error("Erro ao salvar transação:", error);
+        alert("Ocorreu um erro ao salvar a transação.");
       }
     }
   };
 
-  // Se não estiver aberto, não renderiza nada
   if (!isOpen) return null;
 
-  const categoriasFiltradas = categorias.filter(
-    (cat) => cat.category_type === tipoGeral.toLowerCase(),
-  );
+  const categoriasFiltradas = categorias.filter((cat) => cat.category_type === tipoGeral.toLowerCase());
 
   return (
-    // Fundo escurecido
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
       <div className="bg-white w-full max-w-125 rounded-3xl p-6 md:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar">
-        {/* Botão de Fechar */}
-        <button
-          onClick={onClose}
-          className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors text-xl font-bold cursor-pointer"
-        >
-          ✕
-        </button>
+        
+        <button onClick={onClose} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
 
-        {/* Título Estático */}
         <h2 className="text-2xl font-bold text-primary-color-green mb-6">
-          Nova transação
+          {transactionToEdit ? "Editar transação" : "Nova transação"}
         </h2>
 
         <form className="flex flex-col gap-5 p-2">
-          
-          {/* Toggle de Tipo de Transação */}
+          {/* Toggle de Tipo */}
           <div className="flex gap-4 p-1 bg-line-gray rounded-xl">
-            <button
-              type="button"
-              onClick={() => {
-                setTipoGeral("Despesa");
-                setTipoDespesa("");
-                if (errors.categoria) setErrors({ ...errors, categoria: false });
-              }}
-              className={`flex-1 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${tipoGeral === "Despesa" ? "bg-white text-primary-color-green shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-            >
-              Despesa
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setTipoGeral("Receita");
-                setTipoDespesa("");
-                if (errors.categoria) setErrors({ ...errors, categoria: false });
-              }}
-              className={`flex-1 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${tipoGeral === "Receita" ? "bg-white text-primary-color-green shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-            >
-              Receita
-            </button>
+            <button type="button" onClick={() => { setTipoGeral("Despesa"); setTipoDespesa(""); setErrors({ ...errors, categoria: false }); }} className={`flex-1 py-2 rounded-lg font-semibold text-sm transition-all ${tipoGeral === "Despesa" ? "bg-white text-primary-color-green shadow-sm" : "text-gray-500"}`}>Despesa</button>
+            <button type="button" onClick={() => { setTipoGeral("Receita"); setTipoDespesa(""); setErrors({ ...errors, categoria: false }); }} className={`flex-1 py-2 rounded-lg font-semibold text-sm transition-all ${tipoGeral === "Receita" ? "bg-white text-primary-color-green shadow-sm" : "text-gray-500"}`}>Receita</button>
           </div>
 
-          {/* SELECT CATEGORIA */}
+          {/* Categoria */}
           <div className="flex flex-col gap-2 w-full">
-            <label className="text-primary-color-green font-semibold text-sm">
-              Categoria
-            </label>
-
+            <label className="text-primary-color-green font-semibold text-sm">Categoria</label>
             <div className="flex flex-row items-center gap-3 w-full">
-              <select
-                value={tipoDespesa}
-                onChange={(e) => {
-                  setTipoDespesa(e.target.value);
-                  if (errors.categoria) {
-                    setErrors({ ...errors, categoria: false });
-                  }
-                }}
-                className={`bg-line-gray border rounded-xl p-3.5 outline-none transition-all focus:ring-1 focus:ring-primary-color-green text-sm text-primary-color-green font-medium cursor-pointer flex-1
-                  ${errors.categoria ? "border-red-500 ring-1 ring-red-500" : "border-line-gray"}`}
-              >
-                <option value="" disabled>
-                  Selecione a categoria
-                </option>
-
-                {categoriasFiltradas.map((cat) => (
-                  <option key={cat._id} value={cat._id}>
-                    {cat.category_name}
-                  </option>
-                ))}
+              <select value={tipoDespesa} onChange={(e) => { setTipoDespesa(e.target.value); setErrors({ ...errors, categoria: false }); }} className={`bg-line-gray border rounded-xl p-3.5 outline-none transition-all focus:ring-1 focus:ring-primary-color-green text-sm text-primary-color-green font-medium flex-1 ${errors.categoria ? "border-red-500 ring-1 ring-red-500" : "border-line-gray"}`}>
+                <option value="" disabled>Selecione a categoria</option>
+                {categoriasFiltradas.map((cat) => ( <option key={cat._id} value={cat._id}>{cat.category_name}</option> ))}
               </select>
-
-              {/* BOTÃO DE ADICIONAR NOVA CATEGORIA */}
-              <button
-                type="button"
-                onClick={() => setIsCategoryModalOpen(true)}
-                className="bg-primary-color-green text-secondary-color-green w-12 h-[48px] shrink-0 flex items-center justify-center rounded-xl hover:opacity-90 transition-all font-bold text-2xl shadow-sm cursor-pointer"
-                title="Nova Categoria"
-              >
-                +
-              </button>
+              {/* <button type="button" onClick={() => setIsCategoryModalOpen(true)} className="bg-[#049680] text-secondary-color-green w-12 h-[48px] shrink-0 flex items-center justify-center rounded-xl hover:opacity-90 font-bold text-2xl" title="Gerenciar Categorias">⛯</button> */}
+              <button type="button" onClick={() => setIsCategoryModalOpen(true)} className="bg-[#049680] text-secondary-color-green w-12 h-[48px] shrink-0 flex items-center justify-center rounded-xl hover:opacity-90 font-bold text-2xl" title="Gerenciar Categorias">+</button>
             </div>
           </div>
 
-          {/* Se for Despesa, mostra opção À Vista / Parcelado */}
+          {/* Opção À Vista / Parcelado */}
           {tipoGeral === "Despesa" && (
             <div className="flex gap-4 p-1 bg-line-gray rounded-xl mt-2">
-              <button
-                type="button"
-                onClick={() => setTipoPagamento("À vista")}
-                className={`flex-1 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${tipoPagamento === "À vista" ? "bg-white text-primary-color-green shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-              >
-                À vista
-              </button>
-              <button
-                type="button"
-                onClick={() => setTipoPagamento("Parcelado")}
-                className={`flex-1 py-2 rounded-lg font-semibold text-sm transition-all cursor-pointer ${tipoPagamento === "Parcelado" ? "bg-white text-primary-color-green shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-              >
-                Parcelado
-              </button>
+              <button type="button" onClick={() => setTipoPagamento("À vista")} className={`flex-1 py-2 rounded-lg font-semibold text-sm transition-all ${tipoPagamento === "À vista" ? "bg-white text-primary-color-green shadow-sm" : "text-gray-500"}`}>À vista</button>
+              <button type="button" onClick={() => setTipoPagamento("Parcelado")} className={`flex-1 py-2 rounded-lg font-semibold text-sm transition-all ${tipoPagamento === "Parcelado" ? "bg-white text-primary-color-green shadow-sm" : "text-gray-500"}`}>Parcelado</button>
             </div>
           )}
 
-          {/* LINHA: Valor e Data */}
+          {/* Valor e Data */}
           <div className="flex flex-col md:flex-row gap-5">
             <div className="flex flex-col gap-2 w-full">
-              <label className="text-primary-color-green font-semibold text-sm">
-                {tipoPagamento === "Parcelado" && tipoGeral === "Despesa"
-                  ? "Valor da Parcela"
-                  : "Valor"}
-              </label>
-              <input
-                type="text"
-                value={valor}
-                onChange={handleCurrencyChange}
-                placeholder="R$ 0,00"
-                className={`bg-line-gray border rounded-xl p-3.5 outline-none transition-all focus:ring-1 focus:ring-primary-color-green w-full text-sm font-semibold text-primary-color-green
-                  ${errors.valor ? "border-red-500 ring-1 ring-red-500" : "border-line-gray"}`}
-              />
+              <label className="text-primary-color-green font-semibold text-sm">{tipoPagamento === "Parcelado" && tipoGeral === "Despesa" ? "Valor da Parcela" : "Valor"}</label>
+              <input type="text" value={valor} onChange={handleCurrencyChange} placeholder="R$ 0,00" className={`bg-line-gray border rounded-xl p-3.5 outline-none focus:ring-1 focus:ring-primary-color-green w-full text-sm font-semibold text-primary-color-green ${errors.valor ? "border-red-500 ring-1 ring-red-500" : "border-line-gray"}`} />
             </div>
-
             <div className="flex flex-col gap-2 w-full">
-              <label className="text-primary-color-green font-semibold text-sm">
-                Data
-              </label>
-              <input
-                type="date"
-                value={data}
-                onChange={(e) => setData(e.target.value)}
-                className={`bg-line-gray border rounded-xl p-3.5 outline-none transition-all focus:ring-1 focus:ring-primary-color-green w-full text-sm font-medium text-primary-color-green
-                  ${errors.data ? "border-red-500 ring-1 ring-red-500" : "border-line-gray"}`}
-              />
+              <label className="text-primary-color-green font-semibold text-sm">Data</label>
+              <input type="date" value={data} onChange={(e) => setData(e.target.value)} className={`bg-line-gray border rounded-xl p-3.5 outline-none focus:ring-1 focus:ring-primary-color-green w-full text-sm font-medium text-primary-color-green ${errors.data ? "border-red-500 ring-1 ring-red-500" : "border-line-gray"}`} />
             </div>
           </div>
 
-          {/* Qtd Parcelas e Valor Total */}
+          {/* Parcelas e Valor Total */}
           {tipoGeral === "Despesa" && tipoPagamento === "Parcelado" && (
             <div className="flex flex-col md:flex-row gap-5 bg-[#E2F7D8] p-4 rounded-xl border border-secondary-color-green">
               <div className="flex flex-col gap-2 w-full">
-                <label className="text-primary-color-green font-semibold text-sm">
-                  Qtd. Parcelas
-                </label>
-                <input
-                  type="number"
-                  value={qtdParcelas}
-                  onChange={(e) => setQtdParcelas(e.target.value)}
-                  placeholder="Ex: 12"
-                  className={`bg-white border rounded-xl p-3 outline-none transition-all focus:ring-1 focus:ring-primary-color-green w-full text-sm
-                    ${errors.qtdParcelas ? "border-red-500 ring-1 ring-red-500" : "border-transparent"}`}
-                />
+                <label className="text-primary-color-green font-semibold text-sm">Qtd. Parcelas</label>
+                <input type="number" value={qtdParcelas} onChange={(e) => setQtdParcelas(e.target.value)} placeholder="Ex: 12" className={`bg-white border rounded-xl p-3 outline-none focus:ring-1 focus:ring-primary-color-green w-full text-sm ${errors.qtdParcelas ? "border-red-500 ring-1 ring-red-500" : "border-transparent"}`} />
               </div>
               <div className="flex flex-col gap-2 w-full justify-center">
-                <label className="text-primary-color-green font-semibold text-sm">
-                  Valor Total
-                </label>
-                <span className="text-lg font-bold text-primary-color-green">
-                  {calcularTotalParcelado()}
-                </span>
+                <label className="text-primary-color-green font-semibold text-sm">Valor Total</label>
+                <span className="text-lg font-bold text-primary-color-green">{calcularTotalParcelado()}</span>
               </div>
             </div>
           )}
 
-          {/* Campo Nome */}
+          {/* Nome */}
           <div className="flex flex-col gap-2 w-full">
-            <label className="text-primary-color-green font-semibold text-sm">
-              Nome
-            </label>
-            <input
-              type="text"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              placeholder="Ex: Delivery com Ifood, Gasto com roupa tal..."
-              className={`bg-line-gray border rounded-xl p-3.5 outline-none transition-all focus:ring-1 focus:ring-primary-color-green w-full text-sm
-                ${errors.nome ? "border-red-500 ring-1 ring-red-500" : "border-line-gray"}`}
-            />
+            <label className="text-primary-color-green font-semibold text-sm">Nome</label>
+            <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Delivery com Ifood..." className={`bg-line-gray border rounded-xl p-3.5 outline-none focus:ring-1 focus:ring-primary-color-green w-full text-sm ${errors.nome ? "border-red-500 ring-1 ring-red-500" : "border-line-gray"}`} />
           </div>
 
-          {/* Campo Comentário */}
+          {/* Comentário */}
           <div className="flex flex-col gap-2 w-full">
-            <label className="text-primary-color-green font-semibold text-sm">
-              Comentário{" "}
-              <span className="text-gray-400 font-normal">(Opcional)</span>
-            </label>
-            <textarea
-              value={comentario}
-              onChange={(e) => setComentario(e.target.value)}
-              placeholder="Adicione um detalhe..."
-              rows={2}
-              className="bg-line-gray border border-line-gray rounded-xl p-3.5 outline-none transition-all focus:ring-1 focus:ring-primary-color-green w-full text-sm resize-none custom-scrollbar"
-            />
+            <label className="text-primary-color-green font-semibold text-sm">Comentário <span className="text-gray-400 font-normal">(Opcional)</span></label>
+            <textarea value={comentario} onChange={(e) => setComentario(e.target.value)} placeholder="Adicione um detalhe..." rows={2} className="bg-line-gray border border-line-gray rounded-xl p-3.5 outline-none focus:ring-1 focus:ring-primary-color-green w-full text-sm resize-none custom-scrollbar" />
           </div>
 
-          {/* Botão Salvar */}
-          <button
-            onClick={handleSave}
-            className="bg-primary-color-green text-secondary-color-green font-semibold text-base py-3.5 w-full rounded-xl hover:opacity-95 transition-all shadow-md mt-2 cursor-pointer"
-          >
-            Salvar lançamento
+          <button onClick={handleSave} className="bg-primary-color-green text-secondary-color-green font-semibold text-base py-3.5 w-full rounded-xl hover:opacity-95 shadow-md mt-2">
+            {transactionToEdit ? "Salvar Alterações" : "Salvar lançamento"}
           </button>
         </form>
       </div>
-      <CategoryModal
-        isOpen={isCategoryModalOpen}
-        onClose={() => setIsCategoryModalOpen(false)}
-        tipoGeralAtual={tipoGeral}
-      />
+      <CategoryModal isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} tipoGeralAtual={tipoGeral} />
     </div>
   );
 }

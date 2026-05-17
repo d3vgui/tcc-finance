@@ -10,4 +10,8 @@ router.get('/list', transaction_controller.transaction_list_get)
 
 router.post('/post', transaction_controller.transaction_create_post)
 
+router.put('/:id', transaction_controller.transaction_update_put)
+
+router.delete('/:id', transaction_controller.transaction_delete)
+
 module.exports = router;

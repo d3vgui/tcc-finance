@@ -90,3 +90,49 @@ exports.transaction_list_get = asyncHandler(async (req, res) => {
 
     res.status(200).json(transactions);
 })
+
+// ATUALIZAR TRANSAÇÃO
+exports.transaction_update_put = asyncHandler(async(req, res) => {
+    const { id } = req.params;
+    
+    const transaction = await Transaction.findOneAndUpdate(
+        { _id: id, user_id: req.userId },
+        req.body,
+        { new: true, runValidators: true }
+    );
+
+    if (!transaction) {
+        return res.status(404).json({ error: 'Transação não encontrada ou você não tem permissão.' });
+    }
+
+    res.status(200).json(transaction);
+});
+
+// DELETAR UMA TRANSAÇÃO
+exports.transaction_delete = asyncHandler(async(req, res) => {
+    const { id } = req.params;
+    const { deleteAll } = req.query;
+
+    const transaction = await Transaction.findOneAndDelete({ _id: id, user_id: req.userId });
+
+    if (!transaction) {
+        return res.status(404).json({ error: 'Transação não encontrada.' });
+    }
+
+    if (deleteAll === 'true' && transaction.payment_method === 'Parcelado') {
+        const baseName = transaction.descript.split(' (')[0]
+
+        const escapedBaseName = baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        await Transaction.deleteMany({
+            user_id: req.userId,
+            descript: new RegExp(`^${escapedBaseName}`),
+            payment_method: 'Parcelado'
+        });
+
+        return res.status(200).json({ message: 'Todas as parcelas foram deletadas.' });
+    }
+
+    await Transaction.findByIdAndDelete(id);
+    res.status(200).json({ message: 'Transação deletada com sucesso.' });
+});

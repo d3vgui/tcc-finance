@@ -10,6 +10,7 @@ interface AuthErrors {
   email?: boolean
   password?: boolean
   confirmPassword?: boolean
+  resetCode?: boolean
 }
 
 const phrasesEffect = [
@@ -49,105 +50,117 @@ export default function Login() {
   }, [text, isDeleting, loop, fullText, isPaused])
 
   const [authMode, setAuthMode] = useState<"login" | "register" | "forgot">("login")
-
+  
   const [nome, setNome] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  
+  const [forgotStep, setForgotStep] = useState<1 | 2>(1)
+  const [resetCode, setResetCode] = useState("")
+
   const [errors, setErrors] = useState<AuthErrors>({})
+  const [statusMsg, setStatusMsg] = useState({ type: "", text: "" })
 
   const switchMode = (mode: "login" | "register" | "forgot") => {
     setAuthMode(mode)
     setErrors({})
     setPassword("")
     setConfirmPassword("")
+    setResetCode("")
+    setForgotStep(1)
+    setStatusMsg({ type: "", text: "" })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault(); // Impede o refresh padrão do formulário HTML
     const newErrors: AuthErrors = {};
+    setStatusMsg({ type: "", text: "" });
 
-    if (!email.trim() || !email.includes("@")) newErrors.email = true;
-    if (!password.trim() || password.length < 6) newErrors.password = true;
+    if (authMode !== "forgot" || forgotStep === 1) {
+      if (!email.trim() || !email.includes("@")) newErrors.email = true;
+    }
+
+    if (authMode === "login" || authMode === "register" || (authMode === "forgot" && forgotStep === 2)) {
+       if (!password.trim() || password.length < 6) newErrors.password = true;
+    }
 
     if (authMode === "register") {
       if (!nome.trim()) newErrors.nome = true;
       if (!confirmPassword.trim() || password !== confirmPassword) newErrors.confirmPassword = true;
     }
 
-    if (authMode === "forgot") {
+    if (authMode === "forgot" && forgotStep === 2) {
+      if (!resetCode.trim()) newErrors.resetCode = true;
       if (!confirmPassword.trim() || password !== confirmPassword) newErrors.confirmPassword = true;
     }
 
     setErrors(newErrors);
 
-    if (Object.keys(newErrors).length === 0) {
-      try {
-        if (authMode === "register") {
-        
-          const dadosUsuario = {
-            name: nome, 
-            email: email,
-            password: password,
-          };
-
-          const resposta = await api.post(
-            `/api/users/signup`,
-            dadosUsuario
-          );
-
-          console.log("Usuário criado com sucesso:", resposta.data);
-          alert("Conta criada com sucesso!");
-          
-          switchMode("login"); 
-
-        } else if (authMode === "login") {
-          const dadosLogin = {
-            email: email,
-            password: password,
-          }
-
-          const resposta = await api.post(
-            `/api/users/login`,
-            dadosLogin,
-          )
-
-          console.log('Login realizado com sucesso: ', resposta.data)
-
-          router.push('/Home')
-
-        } else if (authMode === "forgot") {
-          console.log("Chamada de redefinição simulada", { email, password });
-          alert("Senha redefinida com sucesso!");
-        }
-
-      } catch (error: any) {
-        // DETALHES DE ERROS GERADOS NO AXIOS
-        console.log("=== DETALHES DO ERRO AXIOS ===");
-        console.log("Mensagem de erro principal:", error.message);
-        
-        if (error.response) {
-          // BACKEND RESPONDEU COM ERRO (400, 404, 500)
-          console.log("Status do Backend:", error.response.status);
-          console.log("Resposta do Backend:", error.response.data);
-          alert(error.response.data.message || `Erro do servidor: ${error.response.status}`);
-        } else if (error.request) {
-          // REQUISIÇÃO FEITA, MAS SEM RESPOSTA DO BACKEND POR CAUSA DO CORS
-          console.log("Nenhuma resposta recebida. Problema de rede ou CORS.");
-          console.log("Detalhes do Request:", error.request);
-          alert("Não foi possível conectar ao servidor. O backend está rodando?");
-        } else {
-          // Algo aconteceu ao montar a requisição
-          console.log("Erro ao montar requisição:", error.message);
-        }
-        console.log("==============================");
-      }
+    // 1ª TRAVA DE SEGURANÇA: Se tiver erro no front-end, avisa o usuário e PARA a função aqui.
+    if (Object.keys(newErrors).length > 0) {
+      setStatusMsg({ type: "error", text: "Por favor, verifique os campos em vermelho." });
+      return; 
     }
+
+    try {
+      if (authMode === "register") {
+        await api.post(`/api/users/signup`, { name: nome, email, password });
+        switchMode("login"); 
+        setStatusMsg({ type: "success", text: "Conta criada com sucesso! Faça seu login." });
+
+      } else if (authMode === "login") {
+        await api.post(`/api/users/login`, { email, password });
+        router.push('/Home')
+
+      } else if (authMode === "forgot") {
+        
+        if (forgotStep === 1) {
+          await api.post(`/api/users/forgot-password`, { email });
+          setForgotStep(2);
+          setStatusMsg({ type: "success", text: "Código enviado para o seu e-mail!" });
+          
+        } else if (forgotStep === 2) {
+          await api.post(`/api/users/reset-password`, { 
+            email, 
+            code: resetCode, 
+            newPassword: password 
+          });
+          switchMode("login");
+          setStatusMsg({ type: "success", text: "Senha redefinida com sucesso!" });
+        }
+      }
+
+    } catch (error: any) {
+        if (error.response && error.response.data) {
+          // Tenta ler o campo 'message' ou o campo 'error' que vêm do seu Controller do Node.js
+          const backendMessage = error.response.data.message || error.response.data.error;
+          
+          if (backendMessage) {
+            // Se o backend mandou texto, mostra ele!
+            setStatusMsg({ type: "error", text: backendMessage });
+          } else {
+            // Plano B de segurança, caso o backend mande um JSON vazio no erro
+            setStatusMsg({ type: "error", text: `Erro do servidor: ${error.response.status}` });
+          }
+        } else {
+          setStatusMsg({ type: "error", text: "Não foi possível conectar ao servidor." });
+        }
+      }
   };
 
   const baseInputClass = "mt-2 bg-line-gray border p-3 rounded-2xl w-full shadow-lg placeholder:text-xs outline-none focus:ring-2 focus:ring-gradient-green transition-all"
   const errorInputClass = "border-red-500 ring-2 ring-red-500"
   const defaultInputClass = "border-transparent"
+
+  const renderStatusMessage = () => {
+    if (!statusMsg.text) return null;
+    return (
+      <div className={`mt-4 p-3 rounded-xl text-sm font-semibold text-center w-full ${statusMsg.type === 'success' ? 'bg-[#E6F4F1] text-primary-color-green' : 'bg-red-100 text-red-600'}`}>
+        {statusMsg.text}
+      </div>
+    );
+  };
 
   return (
     <div className="flex items-center min-h-dvh w-full bg-linear-to-bl from-primary-color-green to-gradient-green overscroll-none">
@@ -162,17 +175,15 @@ export default function Login() {
           <p className="text-center text-white mt-4 text-lg font-semibold lg:text-2xl lg:mt-8 xl:text-3xl">{text}<span className={`text-secondary-color-green ${isPaused ? 'animate-pulse' : ''}`}>|</span></p>
         </div>
 
-        {/* AQUI ESTÁ A CORREÇÃO DA LARGURA: Voltei para a sua classe original lg:w-3/6 e p-12/16 */}
         <div className="flex flex-col items-center bg-white p-6 rounded-2xl h-fit shadow-2xl lg:p-12 lg:w-3/6 xl:p-16">
           
-          {/* ========================================= */}
-          {/* TELA DE LOGIN */}
-          {/* ========================================= */}
           {authMode === "login" && (
             <div className="w-full flex flex-col animate-fade-in">
               <span className="text-2xl text-center text-primary-color-green font-bold lg:text-3xl lg:self-start xl:text-4xl">Bem-vindo!</span>
               <span className="mt-2 text-text-login text-center text-sm md:text-base lg:self-start">Faça o login ou crie uma conta</span>
               
+              {renderStatusMessage()}
+
               <form onSubmit={handleSubmit} className="flex flex-col mt-6 w-full lg:mt-8">
                 <div className="flex flex-col mb-4">
                   <label className="text-primary-color-green font-medium text-sm">E-mail</label>
@@ -194,11 +205,6 @@ export default function Login() {
                     placeholder="Informe sua senha" 
                     className={`${baseInputClass} ${errors.password ? errorInputClass : defaultInputClass}`}
                   />
-                  {errors.password && (
-                    <span className="text-red-500 text-xs font-semibold mt-1.5 ml-1">
-                      A senha deve ter no mínimo 6 caracteres.
-                    </span>
-                  )}
                 </div>
                 
                 <button 
@@ -224,67 +230,30 @@ export default function Login() {
             </div>
           )}
 
-          {/* ========================================= */}
-          {/* TELA DE REGISTRO */}
-          {/* ========================================= */}
           {authMode === "register" && (
             <div className="w-full flex flex-col animate-fade-in">
               <span className="text-center text-2xl text-primary-color-green font-bold lg:text-3xl lg:self-start xl:text-4xl">Criar conta</span>
               <span className="mt-2 text-text-login text-center text-sm md:text-base lg:self-start">Preencha seus dados abaixo</span>
               
+              {renderStatusMessage()}
+
               <form onSubmit={handleSubmit} className="flex flex-col mt-6 w-full lg:mt-8">
                 <div className="flex flex-col mb-3">
                   <label className="text-primary-color-green font-medium text-sm">Nome completo</label>
-                  <input 
-                    type="text" 
-                    value={nome}
-                    onChange={(e) => setNome(e.target.value)}
-                    placeholder="Informe seu nome" 
-                    className={`${baseInputClass} ${errors.nome ? errorInputClass : defaultInputClass}`}
-                  />
+                  <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Informe seu nome" className={`${baseInputClass} ${errors.nome ? errorInputClass : defaultInputClass}`} />
                 </div>
-
                 <div className="flex flex-col mb-3">
                   <label className="text-primary-color-green font-medium text-sm">E-mail</label>
-                  <input 
-                    type="email" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Informe seu e-mail" 
-                    className={`${baseInputClass} ${errors.email ? errorInputClass : defaultInputClass}`}
-                  />
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Informe seu e-mail" className={`${baseInputClass} ${errors.email ? errorInputClass : defaultInputClass}`} />
                 </div>
-                
                 <div className="flex flex-col gap-3">
                   <div className="w-full flex flex-col">
                     <label className="text-primary-color-green font-medium text-sm">Senha</label>
-                    <input 
-                      type="password" 
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Mínimo de 6 caracteres" 
-                      className={`${baseInputClass} ${errors.password ? errorInputClass : defaultInputClass}`}
-                    />
-                    {errors.password && (
-                      <span className="text-red-500 text-[11px] font-semibold mt-1.5 ml-1 leading-tight">
-                        Mínimo de 6 caracteres.
-                      </span>
-                    )}
+                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo de 6 caracteres" className={`${baseInputClass} ${errors.password ? errorInputClass : defaultInputClass}`} />
                   </div>
                   <div className="w-full flex flex-col">
                     <label className="text-primary-color-green font-medium text-sm">Confirmar</label>
-                    <input 
-                      type="password" 
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Confirme a senha" 
-                      className={`${baseInputClass} ${errors.confirmPassword ? errorInputClass : defaultInputClass}`}
-                    />
-                    {errors.confirmPassword && (
-                      <span className="text-red-500 text-[11px] font-semibold mt-1.5 ml-1 leading-tight">
-                        As senhas não coincidem.
-                      </span>
-                    )}
+                    <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirme a senha" className={`${baseInputClass} ${errors.confirmPassword ? errorInputClass : defaultInputClass}`} />
                   </div>
                 </div>
                 
@@ -293,70 +262,77 @@ export default function Login() {
                 </button>
               </form>
               
-              <button 
-                type="button"
-                onClick={() => switchMode("login")}
-                className="text-sm font-medium text-text-login hover:text-primary-color-green transition-colors cursor-pointer"
-              >
+              <button onClick={() => switchMode("login")} className="text-sm font-medium text-text-login hover:text-primary-color-green transition-colors cursor-pointer">
                 Já tem uma conta? <span className="font-bold underline">Faça login</span>
               </button>
             </div>
           )}
 
-          {/* ========================================= */}
-          {/* TELA DE RECUPERAR SENHA */}
-          {/* ========================================= */}
           {authMode === "forgot" && (
             <div className="w-full flex flex-col animate-fade-in">
               <span className="text-center text-2xl text-primary-color-green font-bold lg:text-3xl lg:self-start xl:text-4xl">Recuperar senha</span>
-              <span className="mt-2 text-text-login text-center text-sm md:text-base lg:self-start">Crie uma nova senha</span>
               
-              <form onSubmit={handleSubmit} className="flex flex-col mt-6 w-full lg:mt-8">
-                <div className="flex flex-col mb-4">
-                  <label className="text-primary-color-green font-medium text-sm">E-mail da conta</label>
-                  <input 
-                    type="email" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Informe seu e-mail" 
-                    className={`${baseInputClass} ${errors.email ? errorInputClass : defaultInputClass}`}
-                  />
-                </div>
+              <span className="mt-2 text-text-login text-center text-sm md:text-base lg:self-start">
+                {forgotStep === 1 ? "Digite seu e-mail para receber um código" : "Insira o código recebido e a nova senha"}
+              </span>
+              
+              {renderStatusMessage()}
 
-                <div className="flex flex-col mb-4">
-                  <label className="text-primary-color-green font-medium text-sm">Nova senha</label>
-                  <input 
-                    type="password" 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Informe a nova senha" 
-                    className={`${baseInputClass} ${errors.password ? errorInputClass : defaultInputClass}`}
-                  />
-                  {errors.password && (
-                    <span className="text-red-500 text-xs font-semibold mt-1.5 ml-1">
-                      A senha deve ter no mínimo 6 caracteres.
-                    </span>
-                  )}
-                </div>
+              <form onSubmit={handleSubmit} className="flex flex-col mt-6 w-full lg:mt-8">
                 
-                <div className="flex flex-col mb-2">
-                  <label className="text-primary-color-green font-medium text-sm">Confirmar nova senha</label>
-                  <input 
-                    type="password" 
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Repita a nova senha" 
-                    className={`${baseInputClass} ${errors.confirmPassword ? errorInputClass : defaultInputClass}`}
-                  />
-                  {errors.confirmPassword && (
-                    <span className="text-red-500 text-xs font-semibold mt-1.5 ml-1">
-                      As senhas não coincidem.
-                    </span>
-                  )}
-                </div>
+                {forgotStep === 1 && (
+                  <div className="flex flex-col mb-4">
+                    <label className="text-primary-color-green font-medium text-sm">E-mail da conta</label>
+                    <input 
+                      type="email" 
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Informe seu e-mail" 
+                      className={`${baseInputClass} ${errors.email ? errorInputClass : defaultInputClass}`}
+                    />
+                  </div>
+                )}
+
+                {forgotStep === 2 && (
+                  <>
+                    <div className="flex flex-col mb-4">
+                      <label className="text-primary-color-green font-medium text-sm">Código de verificação</label>
+                      <input 
+                        type="text" 
+                        value={resetCode}
+                        onChange={(e) => setResetCode(e.target.value)}
+                        placeholder="Ex: 123456" 
+                        maxLength={6}
+                        className={`${baseInputClass} tracking-widest text-center font-bold ${errors.resetCode ? errorInputClass : defaultInputClass}`}
+                      />
+                    </div>
+
+                    <div className="flex flex-col mb-4">
+                      <label className="text-primary-color-green font-medium text-sm">Nova senha</label>
+                      <input 
+                        type="password" 
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Informe a nova senha" 
+                        className={`${baseInputClass} ${errors.password ? errorInputClass : defaultInputClass}`}
+                      />
+                    </div>
+                    
+                    <div className="flex flex-col mb-2">
+                      <label className="text-primary-color-green font-medium text-sm">Confirmar nova senha</label>
+                      <input 
+                        type="password" 
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Repita a nova senha" 
+                        className={`${baseInputClass} ${errors.confirmPassword ? errorInputClass : defaultInputClass}`}
+                      />
+                    </div>
+                  </>
+                )}
                 
                 <button type="submit" className="bg-primary-color-green text-secondary-color-green font-semibold text-base p-3 rounded-2xl mt-8 mb-5 cursor-pointer hover:opacity-90 transition-all shadow-md">
-                  Redefinir senha
+                  {forgotStep === 1 ? "Enviar código" : "Redefinir senha"}
                 </button>
               </form>
               

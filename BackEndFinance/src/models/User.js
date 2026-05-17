@@ -7,10 +7,18 @@ let UserSchema = new Schema({
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true, select: false },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
-    created_at: { type: Date, default: Date.now }
+    created_at: { type: Date, default: Date.now },
+    resetPasswordCode: {
+        type: String,
+        default: null
+    },
+    resetPasswordExpires: {
+        type: Date,
+        default: null
+    }
 })
 
-UserSchema.virtual('url').get(function(){
+UserSchema.virtual('url').get(function () {
     return '/user/' + this._id
 })
 

@@ -4,6 +4,15 @@ const { body, validationResult } = require('express-validator')
 const bcrypt = require('bcryptjs')
 const saltRounds = 10
 const jwt = require('jsonwebtoken')
+const nodemailer = require('nodemailer')
+
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: 'simplefinanceprojeto@gmail.com',
+        pass: 'ymeh amtq qwsk iqet'
+    }
+});
 
 // MOSTRANDO A LISTA DE USUÁRIOS
 exports.user_create_list = asyncHandler(async(req, res, next) => {
@@ -18,8 +27,8 @@ body('name')
     .isLength({min: 1})
     .escape()
     .withMessage('O Nome do usuário deve ser especificado')
-    .isAlphanumeric()
-    .withMessage('O nome do usuário não pode conter caracteres alfanuméricos'),
+    .matches(/^[a-zA-ZÀ-ÿ\s]+$/)
+    .withMessage('O nome deve conter apenas letras e espaços.'),
 body('email')
     .trim()
     .isLength({min: 11})
@@ -139,3 +148,90 @@ exports.user_logout_post = (req, res) => {
 
   res.status(200).json({ message: 'Logout realizado com sucesso!' })
 }
+
+
+exports.forgot_password_post = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    // Procura o usuário
+    const user = await User.findOne({ email });
+    if (!user) {
+      // REGRA DE SEGURANÇA SE CASO NÃO EXISTIR O EMAIL, MESMO ASSIM VAI SER RETORNADO UMA MENSAGEM DE SUCESSO
+        return res.status(200).json({ message: 'Se o e-mail existir, um código será enviado.' });
+    }
+
+    // Gera um código de 6 dígitos (Ex: 839102)
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Define a validade do código
+    const expiresAt = Date.now() + 15 * 60 * 1000;
+
+    // Salva no banco de dados
+    try {
+        user.resetPasswordCode = resetCode;
+        user.resetPasswordExpires = expiresAt;
+        await user.save();
+        console.log("Código de recuperação salvo com sucesso no MongoDB");
+    } catch (dbError) {
+        console.error("ERRO AO SALVAR NO MONGODB:", dbError);
+        return res.status(500).json({ message: "Erro ao salvar código no banco" });
+    }
+
+    // Prepara o e-mail
+    const mailOptions = {
+        from: '"SimpleFinance" <simplefinanceprojeto@gmail.com>',
+        to: user.email,
+        subject: 'Código de Recuperação de Senha',
+        html: `
+            <h2>Olá, ${user.name}</h2>
+            <p>Você solicitou a recuperação de senha no SimpleFinance.</p>
+            <p>Seu código de verificação é: <strong><span style="font-size: 24px; color: #00927D;">${resetCode}</span></strong></p>
+            <p>Este código expira em 15 minutos.</p>
+            <p>Se você não fez essa solicitação, apenas ignore este e-mail.</p>
+        `
+    };
+
+    // Envia o e-mail
+    try {
+        console.log("Tentando conectar com o provedor de e-mail");
+        await transporter.sendMail(mailOptions);
+        console.log("E-MAIL ENVIADO COM SUCESSO!");
+        
+        res.status(200).json({ message: 'Código enviado com sucesso.' });
+    } catch (emailError) {
+        // A MÁGICA ACONTECE AQUI! Isso vai cuspir o erro exato no seu terminal.
+        console.error("ERRO FATAL AO ENVIAR E-MAIL. DETALHES ABAIXO:");
+        console.error(emailError); 
+        
+        res.status(500).json({ message: 'Erro interno ao enviar o e-mail. Verifique os logs do servidor.' });
+    }
+})
+
+// VALIDAR O CÓDIGO E SALVAR A NOVA SENHA
+exports.reset_password_post = asyncHandler(async (req, res) => {
+    const { email, code, newPassword } = req.body;
+
+    // PROCURA O USUÁRIO PELO EMAIL E VERIFICA SE O CÓDIGO NÃO EXPIROU
+    const user = await User.findOne({ 
+        email: email,
+        resetPasswordCode: code,
+        resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+        return res.status(400).json({ error: 'Código inválido ou expirado. Solicite um novo.' });
+    }
+
+    // CRIPTOGRAFANDO NOVA SENHA
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    // ATUALIZA E LIMPA O CÓDIGO PARA NAO SER UTILIZADO NOVAMENTE
+    user.password = hashedPassword; 
+    user.resetPasswordCode = undefined;
+    user.resetPasswordExpires = undefined;
+
+    await user.save();
+
+    res.status(200).json({ message: 'Senha redefinida com sucesso!' });
+})
