@@ -9,7 +9,7 @@ interface TransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
   transactionToEdit?: any | null;
-  onSaveSuccess?: () => void; // <--- ADICIONE ESTA LINHA
+  onSaveSuccess?: () => void;
 }
 
 interface FormErrors { nome?: boolean; data?: boolean; valor?: boolean; qtdParcelas?: boolean; categoria?: boolean; }
